@@ -58,7 +58,7 @@
 #define MATRIX_DIMENSION_MIN 16
 
 //@@ If defined, forces all matrix dimensions to be a multiple of 16
-//#define MATRIX_FORCE_TO_MULTIPLE_OF_16
+#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ If defined, outputs results to debug.txt instead of to console
 //#define DEBUG_OUTPUT_RESULTS
