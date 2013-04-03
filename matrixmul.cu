@@ -54,11 +54,11 @@
 #define TEST_REPEAT_NUM 1
 
 //@@ Matrix dimensions are randomly generated between these two values
-#define MATRIX_DIMENSION_MAX 128
+#define MATRIX_DIMENSION_MAX 16
 #define MATRIX_DIMENSION_MIN 16
 
 //@@ If defined, forces all matrix dimensions to be a multiple of 16
-#define MATRIX_FORCE_TO_MULTIPLE_OF_16
+//#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ If defined, outputs results to debug.txt instead of to console
 //#define DEBUG_OUTPUT_RESULTS
@@ -104,6 +104,9 @@ int main(int argc, char** argv) {
 		int a = max(rand() % rmax, rmin);
 		int b = max(rand() % rmax, rmin);
 		int c = max(rand() % rmax, rmin);
+
+		a = 5;
+		b = 9;
 
 		#ifdef MATRIX_FORCE_TO_MULTIPLE_OF_16
 		a = max(a / 16, 1) * 16;
@@ -293,6 +296,11 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
 
     // ******************** //
 
+    dim3 dimBlock(16, 16);
+    dim3 dimGrid((N.width / dimBlock.x) + 1, (M.height / dimBlock.y) + 1);
+    MatrixMulKernel<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
+
+    /*
     // Setup the execution configuration
     int blockSize = 16;
     dim3 dimBlock(blockSize, blockSize);
@@ -301,6 +309,7 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
     // Launch the device computation threads!
     //printf("Begin MatrixMulKernel (dimGrid:%d,%d dimBlock:%d,%d)\n", dimGrid.x, dimGrid.y, dimBlock.x, dimBlock.y);
     MatrixMulKernel<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
+	*/
 
     // ******************** //
 
