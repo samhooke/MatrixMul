@@ -42,31 +42,29 @@
 #include "cutilmk2.h" // Replaces cutil.h
 #include "matrixmul_kernel.h"
 
-//@@ Set to 1 to perform a single test for validating correctness of functions
-//@@ Set to >1 to perform a repeat test for comparing speed of GPU to CPU
-#define TEST_REPEAT_NUM 1
+//@@ Choose which kernel to use
+// Kernel 1: Works with any sized matrices that have dimensions
+//           that are multiples of BLOCK_SIZE, and bigger than or
+//           equal to BLOCK_SIZE x BLOCK_SIZE.
+// Kernel 2: Works with any sized matrices that have dimensions
+//           bigger than or equal to BLOCK_SIZE x BLOCK_SIZE. May
+//           be slower than kernel 1 as a result of this flexibility.
+#define MATRIX_KERNEL 1
+
+//@@ If defined, forces all matrix dimensions to be a multiple of 16
+//@@ This is required for Kernel 2 to work successfully
+#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ Matrix dimensions are randomly generated between these two values
 #define MATRIX_DIMENSION_MAX 1024
 #define MATRIX_DIMENSION_MIN 16
 
-//@@ If defined, forces all matrix dimensions to be a multiple of 16
-//#define MATRIX_FORCE_TO_MULTIPLE_OF_16
+//@@ Set to 1 to perform a single test for validating correctness of functions
+//@@ Set to >1 to perform a repeat test for comparing speed of GPU to CPU
+#define TEST_REPEAT_NUM 1
 
 //@@ If defined, outputs results to debug.txt instead of to console
 //#define DEBUG_OUTPUT_RESULTS
-
-//@@ Uncomment the kernel to use
-
-// Kernel 1: Works with any sized matrices that have dimensions
-//           that are multiples of BLOCK_SIZE, and bigger than or
-//           equal to BLOCK_SIZE x BLOCK_SIZE.
-//#define USE_KERNEL_1
-
-// Kernel 2: Works with any sized matrices that have dimensions
-//           bigger than or equal to BLOCK_SIZE x BLOCK_SIZE. May
-//           be slower than kernel 1 as a result of this flexibility.
-#define USE_KERNEL_2
 
 extern "C"
 void computeGold(float*, const float*, const float*, unsigned int, unsigned int, unsigned int);
@@ -282,11 +280,12 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P) {
     dim3 dimBlock(blockSize, blockSize);
     dim3 dimGrid((Pd.width - 1) / dimBlock.x + 1, (Pd.height - 1) / dimBlock.y + 1);
 
-#ifdef USE_KERNEL_1
+#if MATRIX_KERNEL == 1
     MatrixMulKernel_BlockSize<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
-#endif
-#ifdef USE_KERNEL_2
+#elif MATRIX_KERNEL == 2
     MatrixMulKernel<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
+#else
+    printf("Invalid kernel number selected: %d\n", MATRIX_KERNEL);
 #endif
 
     // Read P from the device

@@ -4,8 +4,8 @@
 
 // Works with any sized matrices whose dimensions are BLOCK_SIZE or bigger
 __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
-	int wM = M.width;
-	int wN = N.width;
+	const unsigned int wM = M.width;
+	const unsigned int wN = N.width;
 
 	const unsigned int bx = blockIdx.x;
 	const unsigned int by = blockIdx.y;
@@ -33,7 +33,7 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 
 		__syncthreads();
 
-		for (int k = 0; k < BLOCK_SIZE; k++) {
+		for (unsigned int k = 0; k < BLOCK_SIZE; k++) {
 			Psub += Ms[ty][k] * Ns[k][tx];
 		}
 
@@ -41,30 +41,27 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 	}
 
 	// Perform edge case multiplications
+	// Some logic inferred from: https://github.com/yqzhang/Parallel-Computation/
 	__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
 	__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
 
-	bool c1 = ((m - mBegin) + tx < wM);
-	bool c2 = (ty + (m - mBegin) < wM);
-	bool c3 = (bx * BLOCK_SIZE + tx) < wN;
-
-	if (c1)
+	if ((m - mBegin) + tx < wM)
 		Ms[ty][tx] = M.elements[m + wM * ty + tx];
 	else
 		Ms[ty][tx] = 0;
-	if (c2)
+	if (ty + (m - mBegin) < wM)
 		Ns[ty][tx] = N.elements[n + wN * ty + tx];
 	else
 		Ns[ty][tx] = 0;
 
 	__syncthreads();
 
-	for (int k = 0; k < BLOCK_SIZE; k++) {
+	for (unsigned int k = 0; k < BLOCK_SIZE; k++) {
 		Psub += Ms[ty][k] * Ns[k][tx];
 	}
 	__syncthreads();
 
-	if (c3) {
+	if ((bx * BLOCK_SIZE + tx) < wN) {
         int p = wN * BLOCK_SIZE * by + BLOCK_SIZE * bx;
         P.elements[p + wN * ty + tx] = Psub;
     }
@@ -72,20 +69,19 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 
 // Only works with matrices whose dimensions are multiples of BLOCK_SIZE
 __global__ void MatrixMulKernel_BlockSize(Matrix M, Matrix N, Matrix P) {
-	int wM = M.width;
-	int wN = N.width;
+	const unsigned int wM = M.width;
+	const unsigned int wN = N.width;
 
-	int bx = blockIdx.x;
-	int by = blockIdx.y;
+	const unsigned int bx = blockIdx.x;
+	const unsigned int by = blockIdx.y;
+	const unsigned int tx = threadIdx.x;
+	const unsigned int ty = threadIdx.y;
 
-	int tx = threadIdx.x;
-	int ty = threadIdx.y;
+	const unsigned int mBegin = wM * BLOCK_SIZE * by;
+	const unsigned int mStep = BLOCK_SIZE;
 
-	int mBegin = wM * BLOCK_SIZE * by;
-	int mStep = BLOCK_SIZE;
-
-	int nBegin = bx * BLOCK_SIZE;
-	int nStep = wN * BLOCK_SIZE;
+	const unsigned int nBegin = bx * BLOCK_SIZE;
+	const unsigned int nStep = wN * BLOCK_SIZE;
 
 	float Psub = 0;
 
@@ -93,18 +89,12 @@ __global__ void MatrixMulKernel_BlockSize(Matrix M, Matrix N, Matrix P) {
 		__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
 		__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
 
-		int pM = mBegin + (m * mStep);
-		int pN = nBegin + (m * nStep);
-
-		int gM = pM + wM * ty + tx;
-		int gN = pN + wN * ty + tx;
-
-		Ms[ty][tx] = M.elements[gM];
-		Ns[ty][tx] = N.elements[gN];
+		Ms[ty][tx] = M.elements[(mBegin + (m * mStep)) + wM * ty + tx];
+		Ns[ty][tx] = N.elements[(nBegin + (m * nStep)) + wN * ty + tx];
 
 		__syncthreads();
 
-		for (int k = 0; k < BLOCK_SIZE; ++k) {
+		for (unsigned int k = 0; k < BLOCK_SIZE; ++k) {
 			Psub += Ms[ty][k] * Ns[k][tx];
 		}
 		__syncthreads();
