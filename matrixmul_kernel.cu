@@ -2,6 +2,7 @@
 
 #define BLOCK_SIZE 16
 
+// Works with any sized matrices whose dimensions are BLOCK_SIZE or bigger
 __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 	int wM = M.width;
 	int wN = N.width;
@@ -51,7 +52,7 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 		Ms[ty][tx] = M.elements[m + wM * ty + tx];
 	else
 		Ms[ty][tx] = 0;
-	if (c2 && c3)
+	if (c2)
 		Ns[ty][tx] = N.elements[n + wN * ty + tx];
 	else
 		Ns[ty][tx] = 0;
@@ -67,4 +68,48 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
         int p = wN * BLOCK_SIZE * by + BLOCK_SIZE * bx;
         P.elements[p + wN * ty + tx] = Psub;
     }
+}
+
+// Only works with matrices whose dimensions are multiples of BLOCK_SIZE
+__global__ void MatrixMulKernel_BlockSize(Matrix M, Matrix N, Matrix P) {
+	int wM = M.width;
+	int wN = N.width;
+
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+
+	int mBegin = wM * BLOCK_SIZE * by;
+	int mStep = BLOCK_SIZE;
+
+	int nBegin = bx * BLOCK_SIZE;
+	int nStep = wN * BLOCK_SIZE;
+
+	float Psub = 0;
+
+	for (unsigned int m = 0; m < (wM - 1) / BLOCK_SIZE + 1; m++) {
+		__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
+		__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
+
+		int pM = mBegin + (m * mStep);
+		int pN = nBegin + (m * nStep);
+
+		int gM = pM + wM * ty + tx;
+		int gN = pN + wN * ty + tx;
+
+		Ms[ty][tx] = M.elements[gM];
+		Ns[ty][tx] = N.elements[gN];
+
+		__syncthreads();
+
+		for (int k = 0; k < BLOCK_SIZE; ++k) {
+			Psub += Ms[ty][k] * Ns[k][tx];
+		}
+		__syncthreads();
+	}
+
+	int p = nBegin + nStep * by;
+	P.elements[p + wN * ty + tx] = Psub;
 }

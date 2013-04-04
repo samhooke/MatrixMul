@@ -54,11 +54,11 @@
 #define TEST_REPEAT_NUM 1
 
 //@@ Matrix dimensions are randomly generated between these two values
-#define MATRIX_DIMENSION_MAX 2048
+#define MATRIX_DIMENSION_MAX 1024
 #define MATRIX_DIMENSION_MIN 16
 
 //@@ If defined, forces all matrix dimensions to be a multiple of 16
-//#define MATRIX_FORCE_TO_MULTIPLE_OF_16
+#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ If defined, outputs results to debug.txt instead of to console
 //#define DEBUG_OUTPUT_RESULTS
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 	int errorM = 0, errorN = 0;
 
 	// Set seed for random numbers
-	srand(52);
+	srand(63);
 	
 	if(argc != 5 && argc != 4) 
 	{
@@ -323,7 +323,7 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
 
     // Launch the device computation threads!
     //printf("Begin MatrixMulKernel (dimGrid:%d,%d dimBlock:%d,%d)\n", dimGrid.x, dimGrid.y, dimBlock.x, dimBlock.y);
-    MatrixMulKernel<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
+    MatrixMulKernel_BlockSize<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
 
 
     // ******************** //
