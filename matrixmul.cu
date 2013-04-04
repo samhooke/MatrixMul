@@ -108,9 +108,9 @@ int main(int argc, char** argv) {
 		//a = 24;
 		//b = 16;
 
-		a = 17;
-		b = 19;//16;
-		c = 21;
+		a = 19;
+		b = 90;//16;
+		c = 94;
 
 		#ifdef MATRIX_FORCE_TO_MULTIPLE_OF_16
 		a = max(a / 16, 1) * 16;
