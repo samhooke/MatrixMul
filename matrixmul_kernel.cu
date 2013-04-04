@@ -13,21 +13,23 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 
 	const unsigned int mBegin = wM * (by * BLOCK_SIZE);
 	const unsigned int mEnd = mBegin + wM;
+	//const unsigned int mEnd = mBegin + wM - 1;
 	const unsigned int mStep = BLOCK_SIZE;
 
 	const unsigned int nBegin = BLOCK_SIZE * bx;
-	const unsigned int nStep = BLOCK_SIZE * wM;
+	const unsigned int nStep = BLOCK_SIZE * wN;
 
 	float Psub = 0;
 
 	unsigned int m, n;
 
 	for (m = mBegin, n = nBegin; m < mEnd - BLOCK_SIZE; m += mStep, n += nStep) {
+	//for (m = mBegin, n = nBegin; m <= mEnd; m += mStep, n += nStep) {
 		__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
 		__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
 
 		Ms[ty][tx] = M.elements[m + wM * ty + tx];
-		Ns[ty][tx] = N.elements[n + wM * ty + tx];
+		Ns[ty][tx] = N.elements[n + wN * ty + tx];
 
 		__syncthreads();
 
@@ -41,12 +43,12 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 	__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
 	__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
 
-	if((ty + by * BLOCK_SIZE < wM) && ((m - mBegin) + tx < wM))
+	if((ty + by * BLOCK_SIZE < wM) && ((m - mBegin) + tx < wN))
 		Ms[ty][tx] = M.elements[m + wM * ty + tx];
 	else
 		Ms[ty][tx] = 0;
-	if((ty + (m - mBegin) < wM) && (BLOCK_SIZE * bx + tx < wM))
-		Ns[ty][tx] = N.elements[n + wM * ty + tx];
+	if((ty + (m - mBegin) < wM) && (BLOCK_SIZE * bx + tx < wN))
+		Ns[ty][tx] = N.elements[n + wN * ty + tx];
 	else
 		Ns[ty][tx] = 0;
 
@@ -57,13 +59,13 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 	}
 	__syncthreads();
 
-    if(by * BLOCK_SIZE + ty < wM && bx * BLOCK_SIZE + tx < wM) {
-        int p = (by * BLOCK_SIZE + ty) * wM + (bx * BLOCK_SIZE + tx);
-        P.elements[p] = Psub;
-    }
+    if(by * BLOCK_SIZE + ty < wM && bx * BLOCK_SIZE + tx < wN) {
+        //int p = (by * BLOCK_SIZE + ty) * wM + (bx * BLOCK_SIZE + tx);
+    	//P.elements[p] = Psub;
 
-	//int p = nBegin + nStep * by;
-	//P.elements[p + wN * ty + tx] = Psub;
+        int c = wN * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+        P.elements[c + wN * ty + tx] = Psub;
+    }
 }
 
 /*
@@ -234,75 +236,5 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 
 	int p = nBegin + nStep * by;
 	P.elements[p + wN * ty + tx] = Psub;
-}
-*/
-/*
-//__global__ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P) {
-__global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
-	__shared__ float Mds[TILE_WIDTH][TILE_WIDTH];
-	__shared__ float Nds[TILE_WIDTH][TILE_WIDTH];
-
-	int bx = blockIdx.x; int by = blockIdx.y;
-	int tx = threadIdx.x; int ty = threadIdx.y;
-
-	// Identify the row and column of the Pd element to work on
-	int Row = by * TILE_WIDTH + ty;
-	int Col = bx * TILE_WIDTH + tx;
-	int limit;
-
-	float Pvalue = 0;
-	// Loop over the Md and Nd tiles required to compute the Pd element
-	for (int m = 0; m < (ceil((float)M.width/(float)TILE_WIDTH)); ++m) {
-		//suppose M.width is 66 then the 1st four tiles are 16 elements wide .. and the last one is 2 .. here we calculate m which is used in calculation to indicate this
-		(m == (ceil((float)M.width/(float)TILE_WIDTH)-1)) ? limit = (M.width - TILE_WIDTH*(floor((float)M.width/(float)TILE_WIDTH))): limit = TILE_WIDTH ;
-
-		//calculate all tiles except the bottom and most right ones (this is because all tiles here are guaranteed to be of tile_width*tile_width size)
-		if ((bx < (ceil((float)N.width/(float)TILE_WIDTH)-1)) && (by <(ceil((float)M.height/(float)TILE_WIDTH)-1))) {
-			Mds[ty][tx] = M.elements[Row*M.width + (m*TILE_WIDTH + tx)];
-			Nds[ty][tx] = N.elements[Col + (m*TILE_WIDTH + ty)*N.width];
-			__syncthreads();
-			for (int k = 0; k < limit; ++k) {
-				Pvalue += Mds[ty][k] * Nds[k][tx];
-			}
-		}
-
-		//calculate the bottom right most corner tile (it is not guaranteed to be tile_width in any direction .. can be less)
-		else if ((bx == (ceil((float)N.width/(float)TILE_WIDTH)-1)) && (by == (ceil((float)M.height/(float)TILE_WIDTH)-1)) && ((N.width % TILE_WIDTH) != 0) && ((M. height % TILE_WIDTH) != 0)) {
-			if ((tx < (N.width - TILE_WIDTH*(floor((float)N.width/(float)TILE_WIDTH)))) && (ty < (M.height - TILE_WIDTH*(floor((float)M.height/(float)TILE_WIDTH))))) {
-				Mds[ty][tx] = M.elements[Row*M.width + (m*TILE_WIDTH + tx)];
-				Nds[ty][tx] = N.elements[Col + (m*TILE_WIDTH + ty)*N.width];
-				__syncthreads();
-				for (int k = 0; k < limit; ++k) {
-					Pvalue += Mds[ty][k] * Nds[k][tx];
-				}
-			}
-		}
-
-		//calculate the right most column except the corner tile .. here the width of the right most column is less than tile_width
-		else if ((bx == (ceil((float)N.width/(float)TILE_WIDTH)-1)) && ((N.width % TILE_WIDTH) != 0) && (by != (ceil((float)M.height/(float)TILE_WIDTH)-1))) {
-			if (tx < (N.width - TILE_WIDTH*(floor((float)N.width/(float)TILE_WIDTH)))) {
-				Mds[ty][tx] = M.elements[Row*M.width + (m*TILE_WIDTH + tx)];
-				Nds[ty][tx] = N.elements[Col + (m*TILE_WIDTH + ty)*N.width];
-				__syncthreads();
-				for (int k = 0; k < limit; ++k) {
-					Pvalue += Mds[ty][k] * Nds[k][tx];
-				}
-			}
-		}
-
-		//calculate the bottom line tiles except the right most corner tile ,, this is the case where the height of the tile is less than tile_width
-		else if ((by == (ceil((float)M.height/(float)TILE_WIDTH)-1)) && ((M. height % TILE_WIDTH) != 0) && (bx != (ceil((float)N.width/(float)TILE_WIDTH)-1))) {
-			if (ty < (M.height - TILE_WIDTH*(floor((float)M.height/(float)TILE_WIDTH)))) {
-				Mds[ty][tx] = M.elements[Row*M.width + (m*TILE_WIDTH + tx)];
-				Nds[ty][tx] = N.elements[Col + (m*TILE_WIDTH + ty)*N.width];
-				__syncthreads();
-				for (int k = 0; k < limit; ++k) {
-					Pvalue += Mds[ty][k] * Nds[k][tx];
-				}
-			}
-		}
-		__syncthreads();
-	}
-	P.elements[Row*P.width+Col] = Pvalue;
 }
 */
