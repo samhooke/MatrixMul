@@ -54,7 +54,7 @@
 #define TEST_REPEAT_NUM 1
 
 //@@ Matrix dimensions are randomly generated between these two values
-#define MATRIX_DIMENSION_MAX 16
+#define MATRIX_DIMENSION_MAX 2048
 #define MATRIX_DIMENSION_MIN 16
 
 //@@ If defined, forces all matrix dimensions to be a multiple of 16
@@ -108,9 +108,20 @@ int main(int argc, char** argv) {
 		//a = 24;
 		//b = 16;
 
-		a = 99;
-		b = 92;//16;
-		c = 94;
+		//a = 92;
+		//b = 18;//92;//16;
+		//c = 17;//94;
+
+		/*
+		a = 999;
+		b = 72;
+		c = 17;
+		*/
+		/*
+		a = 17;
+		b = 72;
+		c = 999;
+		*/
 
 		#ifdef MATRIX_FORCE_TO_MULTIPLE_OF_16
 		a = max(a / 16, 1) * 16;
