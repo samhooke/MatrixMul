@@ -23,6 +23,7 @@
 # Debug output
 debug.txt
 mm_output.txt
+Debug/
 
 # Junk
 .DS_Store
