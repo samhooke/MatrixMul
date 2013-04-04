@@ -58,7 +58,7 @@
 #define MATRIX_DIMENSION_MIN 16
 
 //@@ If defined, forces all matrix dimensions to be a multiple of 16
-#define MATRIX_FORCE_TO_MULTIPLE_OF_16
+//#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ If defined, outputs results to debug.txt instead of to console
 //#define DEBUG_OUTPUT_RESULTS
@@ -108,8 +108,9 @@ int main(int argc, char** argv) {
 		//a = 24;
 		//b = 16;
 
-		a = 18;
-		b = 16;
+		a = 99;
+		b = 99;//16;
+		c = 99;
 
 		#ifdef MATRIX_FORCE_TO_MULTIPLE_OF_16
 		a = max(a / 16, 1) * 16;

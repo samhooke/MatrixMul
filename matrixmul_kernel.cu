@@ -6,45 +6,58 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 	int wM = M.width;
 	int wN = N.width;
 
-	int bx = blockIdx.x;
-	int by = blockIdx.y;
+	const unsigned int bx = blockIdx.x;
+	const unsigned int by = blockIdx.y;
+	const unsigned int tx = threadIdx.x;
+	const unsigned int ty = threadIdx.y;
 
-	int tx = threadIdx.x;
-	int ty = threadIdx.y;
+	const unsigned int mBegin = wM * (by * BLOCK_SIZE);
+	const unsigned int mEnd = mBegin + wM;
+	const unsigned int mStep = BLOCK_SIZE;
 
-	int mBegin = wM * (by * BLOCK_SIZE);
-	int mEnd = mBegin + wM;
-	int mStep = BLOCK_SIZE;
-
-	int nBegin = BLOCK_SIZE * bx;
-	int nStep = BLOCK_SIZE * wN;
+	const unsigned int nBegin = BLOCK_SIZE * bx;
+	const unsigned int nStep = BLOCK_SIZE * wM;
 
 	float Psub = 0;
 
-	//for (unsigned int m = 0; m < (wM - 1) / BLOCK_SIZE + 1; m++) {
 	unsigned int m, n;
-	for (m = mBegin, n = nBegin; m < mEnd; m += mStep, n += nStep) {
+
+	for (m = mBegin, n = nBegin; m < mEnd - BLOCK_SIZE; m += mStep, n += nStep) {
 		__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
 		__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
 
-        if((ty + by * BLOCK_SIZE < wM) && ((m - mBegin) + tx < wM))
-        	Ms[ty][tx] = M.elements[m + wM * (ty) + tx];
-        else
-        	Ms[ty][tx] = 0;
-        if((ty + (m - mBegin) < wN) && (BLOCK_SIZE * bx + tx < wN))
-        	Ns[ty][tx] = N.elements[n + wN * (ty) + tx];
-        else
-        	Ns[ty][tx] = 0;
+		Ms[ty][tx] = M.elements[m + wM * ty + tx];
+		Ns[ty][tx] = N.elements[n + wM * ty + tx];
 
 		__syncthreads();
 
 		for (int k = 0; k < BLOCK_SIZE; k++) {
 			Psub += Ms[ty][k] * Ns[k][tx];
 		}
+
 		__syncthreads();
 	}
 
-    if(by * BLOCK_SIZE + ty < wM && bx * BLOCK_SIZE + tx < wN) {
+	__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
+	__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
+
+	if((ty + by * BLOCK_SIZE < wM) && ((m - mBegin) + tx < wM))
+		Ms[ty][tx] = M.elements[m + wM * ty + tx];
+	else
+		Ms[ty][tx] = 0;
+	if((ty + (m - mBegin) < wM) && (BLOCK_SIZE * bx + tx < wM))
+		Ns[ty][tx] = N.elements[n + wM * ty + tx];
+	else
+		Ns[ty][tx] = 0;
+
+	__syncthreads();
+
+	for (int k = 0; k < BLOCK_SIZE; k++) {
+		Psub += Ms[ty][k] * Ns[k][tx];
+	}
+	__syncthreads();
+
+    if(by * BLOCK_SIZE + ty < wM && bx * BLOCK_SIZE + tx < wM) {
         int p = (by * BLOCK_SIZE + ty) * wM + (bx * BLOCK_SIZE + tx);
         P.elements[p] = Psub;
     }
