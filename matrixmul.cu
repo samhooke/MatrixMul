@@ -105,8 +105,11 @@ int main(int argc, char** argv) {
 		int b = max(rand() % rmax, rmin);
 		int c = max(rand() % rmax, rmin);
 
-		a = 5;
-		b = 9;
+		//a = 24;
+		//b = 16;
+
+		a = 18;
+		b = 16;
 
 		#ifdef MATRIX_FORCE_TO_MULTIPLE_OF_16
 		a = max(a / 16, 1) * 16;
@@ -295,12 +298,12 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
     CopyToDeviceMatrix(Pd, P); // Clear memory
 
     // ******************** //
-
+    /*
     dim3 dimBlock(16, 16);
     dim3 dimGrid((N.width / dimBlock.x) + 1, (M.height / dimBlock.y) + 1);
     MatrixMulKernel<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
+	*/
 
-    /*
     // Setup the execution configuration
     int blockSize = 16;
     dim3 dimBlock(blockSize, blockSize);
@@ -309,7 +312,7 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
     // Launch the device computation threads!
     //printf("Begin MatrixMulKernel (dimGrid:%d,%d dimBlock:%d,%d)\n", dimGrid.x, dimGrid.y, dimBlock.x, dimBlock.y);
     MatrixMulKernel<<<dimGrid, dimBlock>>>(Md, Nd, Pd);
-	*/
+
 
     // ******************** //
 
