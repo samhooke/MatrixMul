@@ -15,3 +15,14 @@
 *.exe
 *.out
 *.app
+
+# Eclipse stuff
+.cprojecet
+.project
+
+# Debug output
+debug.txt
+mm_output.txt
+
+# Junk
+.DS_Store
