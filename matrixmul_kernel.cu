@@ -23,40 +23,10 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 
 	//for (unsigned int m = 0; m < (wM - 1) / BLOCK_SIZE + 1; m++) {
 	unsigned int m, n;
-	for (m = mBegin, n = nBegin; m < mEnd - BLOCK_SIZE; m += mStep, n += nStep) {
+	for (m = mBegin, n = nBegin; m < mEnd; m += mStep, n += nStep) {
 		__shared__ float Ms[BLOCK_SIZE][BLOCK_SIZE];
 		__shared__ float Ns[BLOCK_SIZE][BLOCK_SIZE];
 
-		//int pM = mBegin + (m * mStep); // Block start in M
-		//int pN = nBegin + (m * nStep); // Block start in N
-
-		//int gM = pM + wM * ty + tx; // Cell number
-		//int gN = pN + wN * ty + tx; // Cell number
-
-		//if (gM > 271) {
-		//	Ms[ty][tx] = 0;
-		//	Ns[ty][tx] = 0;
-		//} else {
-		//	Ms[ty][tx] = M.elements[gM];
-		//	Ns[ty][tx] = N.elements[gN];
-		//}
-
-		//Ms[ty][tx] = M.elements[gM];
-		//Ns[ty][tx] = N.elements[gN];
-
-		//Ms[ty][tx] = M.elements[gM];
-		//Ns[ty][tx] = N.elements[gN];
-
-		/*
-        if((ty + by * BLOCK_SIZE < wM) && ((pM - mBegin) + tx < wM))
-        	Ms[ty][tx] = M.elements[pM + wM * ty + tx];
-        else
-        	Ms[ty][tx] = 0;
-        if((ty + (pN - nBegin) < wN) && (BLOCK_SIZE * bx + tx < wN))
-        	Ns[ty][tx] = N.elements[pN + wN * ty + tx];
-        else
-        	Ns[ty][tx] = 0;
-        */
         if((ty + by * BLOCK_SIZE < wM) && ((m - mBegin) + tx < wM))
         	Ms[ty][tx] = M.elements[m + wM * (ty) + tx];
         else
@@ -68,14 +38,19 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 
 		__syncthreads();
 
-		for (int k = 0; k < BLOCK_SIZE; ++k) {
+		for (int k = 0; k < BLOCK_SIZE; k++) {
 			Psub += Ms[ty][k] * Ns[k][tx];
 		}
 		__syncthreads();
 	}
 
-	int p = nBegin + nStep * by;
-	P.elements[p + wN * ty + tx] = Psub;
+    if(by * BLOCK_SIZE + ty < wM && bx * BLOCK_SIZE + tx < wN) {
+        int p = (by * BLOCK_SIZE + ty) * wM + (bx * BLOCK_SIZE + tx);
+        P.elements[p] = Psub;
+    }
+
+	//int p = nBegin + nStep * by;
+	//P.elements[p + wN * ty + tx] = Psub;
 }
 
 /*
