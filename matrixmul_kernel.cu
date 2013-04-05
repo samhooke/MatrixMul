@@ -59,12 +59,13 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P) {
 	for (unsigned int k = 0; k < BLOCK_SIZE; k++) {
 		Psub += Ms[ty][k] * Ns[k][tx];
 	}
+
 	__syncthreads();
 
 	if ((bx * BLOCK_SIZE + tx) < wN) {
-        int p = wN * BLOCK_SIZE * by + BLOCK_SIZE * bx;
-        P.elements[p + wN * ty + tx] = Psub;
-    }
+		int p = wN * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+		P.elements[p + wN * ty + tx] = Psub;
+	}
 }
 
 // Only works with matrices whose dimensions are multiples of BLOCK_SIZE

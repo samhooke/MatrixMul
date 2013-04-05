@@ -17,7 +17,7 @@
 *.app
 
 # Eclipse stuff
-.cprojecet
+.cproject
 .project
 
 # Debug output
