@@ -49,22 +49,22 @@
 // Kernel 2: Works with any sized matrices that have dimensions
 //           bigger than or equal to BLOCK_SIZE x BLOCK_SIZE. May
 //           be slower than kernel 1 as a result of this flexibility.
-#define MATRIX_KERNEL 1
+#define MATRIX_KERNEL 2
 
 //@@ If defined, forces all matrix dimensions to be a multiple of 16
 //@@ This is required for Kernel 2 to work successfully
-#define MATRIX_FORCE_TO_MULTIPLE_OF_16
+//#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ Matrix dimensions are randomly generated between these two values
 #define MATRIX_DIMENSION_MAX 1024
-#define MATRIX_DIMENSION_MIN 16
+#define MATRIX_DIMENSION_MIN 32
 
 //@@ Set to 1 to perform a single test for validating correctness of functions
 //@@ Set to >1 to perform a repeat test for comparing speed of GPU to CPU
 #define TEST_REPEAT_NUM 1
 
-//@@ If defined, outputs results to debug.txt instead of to console
-//#define DEBUG_OUTPUT_RESULTS
+//@@ If defined, writes results to debug.txt instead of to console
+//#define DEBUG_WRITE_RESULTS
 
 extern "C"
 void computeGold(float*, const float*, const float*, unsigned int, unsigned int, unsigned int);
@@ -114,6 +114,7 @@ int main(int argc, char** argv) {
 
 		printf("Chosen matrix dimensions:\n");
 		printf("[%d,%d] * [%d,%d] = [%d,%d]\n", M.height, M.width, N.height, N.width, P.height, P.width);
+		printf("Perform M * N = P\n");
 	} else {
 		// Allocate and read in matrices from disk
 		int* params = NULL; //(int*)malloc(3 * sizeof(int));
@@ -170,18 +171,22 @@ int main(int argc, char** argv) {
 		printf("CPU computation complete\n");
 
 		// Output first 1000 elements for debugging
-#ifdef DEBUG_OUTPUT_RESULTS
+#ifdef DEBUG_WRITE_RESULTS
 		int output_limit = P.height * P.width;
 		FILE *fp;
 		fp = fopen("debug.txt", "w");
 #else
 		int output_limit = 1000;
 #endif
+		int kmax = min(output_limit, P.height * P.width);
+#ifndef DEBUG_WRITE_RESULTS
+		printf("Displaying first %d results from matrix P:\n", kmax);
 		printf("[  ID]       CPU : GPU\n");
-		for (int k = 0; k < min(output_limit, P.height * P.width); k++) {
+#endif
+		for (int k = 0; k < kmax; k++) {
 			float ecpu = reference.elements[k];
 			float egpu = P.elements[k];
-#ifdef DEBUG_OUTPUT_RESULTS
+#ifdef DEBUG_WRITE_RESULTS
 			fprintf(fp, "[%4d] %9f : %9f", k, ecpu, egpu);
 			if (egpu < ecpu + 0.001f && egpu > ecpu - 0.001f)
 				fprintf(fp, "\n");
@@ -195,7 +200,7 @@ int main(int argc, char** argv) {
 					printf(" <--- DO NOT MATCH!\n");
 #endif
 		}
-#ifdef DEBUG_OUTPUT_RESULTS
+#ifdef DEBUG_WRITE_RESULTS
 		fclose(fp);
 #endif
 
@@ -259,6 +264,7 @@ int main(int argc, char** argv) {
     FreeMatrix(&N);
     FreeMatrix(&P);
 
+    printf("Resetting CUDA device\n");
     cudaDeviceReset();
 
 	return 0;
