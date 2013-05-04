@@ -56,15 +56,17 @@
 //#define MATRIX_FORCE_TO_MULTIPLE_OF_16
 
 //@@ Matrix dimensions are randomly generated between these two values
-#define MATRIX_DIMENSION_MAX 1024
-#define MATRIX_DIMENSION_MIN 32
+#define MATRIX_DIMENSION_MAX 512
+#define MATRIX_DIMENSION_MIN 512
 
 //@@ Set to 1 to perform a single test for validating correctness of functions
 //@@ Set to >1 to perform a repeat test for comparing speed of GPU to CPU
-#define TEST_REPEAT_NUM 1
+#define TEST_REPEAT_NUM 10
 
 //@@ If defined, writes results to debug.txt instead of to console
 //#define DEBUG_WRITE_RESULTS
+
+#define HANDLE_ERROR handleError();
 
 extern "C"
 void computeGold(float*, const float*, const float*, unsigned int, unsigned int, unsigned int);
@@ -77,6 +79,7 @@ int ReadFile(Matrix* M, char* file_name);
 void WriteFile(Matrix M, char* file_name);
 void FreeDeviceMatrix(Matrix* M);
 void FreeMatrix(Matrix* M);
+void handleError();
 
 void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P);
 
@@ -273,13 +276,19 @@ int main(int argc, char** argv) {
 void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P) {
     // Load M and N to the device
     Matrix Md = AllocateDeviceMatrix(M);
+    HANDLE_ERROR
     CopyToDeviceMatrix(Md, M);
+    HANDLE_ERROR
     Matrix Nd = AllocateDeviceMatrix(N);
+    HANDLE_ERROR
     CopyToDeviceMatrix(Nd, N);
+    HANDLE_ERROR
 
     // Allocate P on the device
     Matrix Pd = AllocateDeviceMatrix(P);
+    HANDLE_ERROR
     CopyToDeviceMatrix(Pd, P); // Clear memory
+    HANDLE_ERROR
 
     // Set up kernel and launch
     int blockSize = 16;
@@ -293,14 +302,19 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P) {
 #else
     printf("Invalid kernel number selected: %d\n", MATRIX_KERNEL);
 #endif
+    HANDLE_ERROR
 
     // Read P from the device
-    CopyFromDeviceMatrix(P, Pd); 
+    CopyFromDeviceMatrix(P, Pd);
+    HANDLE_ERROR
 
     // Free device matrices
     FreeDeviceMatrix(&Md);
+    HANDLE_ERROR
     FreeDeviceMatrix(&Nd);
+    HANDLE_ERROR
     FreeDeviceMatrix(&Pd);
+    HANDLE_ERROR
 }
 
 // Allocate a device matrix of same size as M.
@@ -376,4 +390,11 @@ int ReadFile(Matrix* M, char* file_name) {
 void WriteFile(Matrix M, char* file_name) {
     cutWriteFilef(file_name, M.elements, M.width*M.height,
                        0.0001f);
+}
+
+void handleError() {
+	cudaError_t err = cudaGetLastError();
+	if (err != cudaSuccess) {
+		printf("Error: %s\n", cudaGetErrorString(err));
+	}
 }
